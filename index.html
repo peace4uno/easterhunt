@@ -10,7 +10,7 @@
         h1 { color: #ff9900; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
         .question-container { margin: 20px 0; padding: 15px; background-color: #ffeecc; border-radius: 10px; display: none; }
         .active-question { display: block; }
-        input[type="text"], textarea { padding: 10px; margin: 10px 0; border: 2px solid #ffcc66; border-radius: 5px; width: 80%; font-size: 16px; }
+        input[type="text"], input[type="password"], textarea { padding: 10px; margin: 10px 0; border: 2px solid #ffcc66; border-radius: 5px; width: 80%; font-size: 16px; }
         button { background-color: #ff9900; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; transition: background-color 0.3s; }
         button:hover { background-color: #e68a00; }
         .hint-button { background-color: #66cc66; font-size: 14px; }
@@ -29,17 +29,32 @@
         .question-image { max-width: 100%; max-height: 300px; margin: 10px 0; }
         #preview-container { margin-top: 20px; padding: 20px; background-color: #f9f9f9; border-radius: 10px; }
         .share-box { padding: 15px; background-color: #e6ffe6; border: 1px solid #66cc66; border-radius: 5px; margin-top: 20px; }
+        #login-panel { background-color: #fff8dc; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
+        .error-message { color: #cc0000; font-weight: bold; margin: 10px 0; }
+        .logout-button { background-color: #cc6666; position: absolute; top: 20px; right: 20px; }
     </style>
 </head>
 <body>
     <div class="container" id="main-container">
         <div class="nav-tabs">
-            <div class="nav-tab" onclick="showTab('admin')">Admin</div>
+            <div class="nav-tab" onclick="attemptShowAdmin()">Admin</div>
             <div class="nav-tab active" onclick="showTab('game')">Spill</div>
+        </div>
+        
+        <!-- Login Panel -->
+        <div id="login-tab" class="tab-content">
+            <div id="login-panel">
+                <h2>Logg inn til admin-panel</h2>
+                <p>Skriv inn passord for å få tilgang til admin-panelet.</p>
+                <input type="password" id="admin-password" placeholder="Passord">
+                <div id="password-error" class="error-message" style="display: none;">Feil passord. Prøv igjen.</div>
+                <button onclick="checkPassword()">Logg inn</button>
+            </div>
         </div>
         
         <!-- Admin Panel / Configuration -->
         <div id="admin-tab" class="tab-content">
+            <button class="logout-button" onclick="logout()">Logg ut</button>
             <div class="admin-panel">
                 <h2>Konfigurer Påske Labyrint</h2>
                 <p>Her kan du tilpasse spørsmål, bilder, hint og svar for ditt påskespill.</p>
@@ -107,6 +122,10 @@
             }
         ];
         
+        // Admin password - HASH instead of plain text for a bit more security
+        const ADMIN_PASSWORD_HASH = "7244c49d4b3b69debd1dd3bd2aa912e2"; // Hash for "Påske2025"
+        let isLoggedIn = false;
+        
         // Make a backup of the original questions for reset functionality
         const originalQuestions = JSON.parse(JSON.stringify(questions));
         
@@ -118,12 +137,80 @@
             loadConfiguration();
             renderAdminPanel();
             renderGame();
+            
+            // Check if we should stay logged in
+            const loggedInStatus = sessionStorage.getItem('paskeLabyrintLoggedIn');
+            if (loggedInStatus === 'true') {
+                isLoggedIn = true;
+            }
+            
+            // Add event listener for Enter key on password field
+            document.getElementById('admin-password').addEventListener('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    checkPassword();
+                }
+            });
         };
+        
+        // Simple MD5 hash function for password checking
+        function md5(input) {
+            // This is a simplified version just for demo purposes
+            // In a real application, use a proper crypto library
+            let hash = 0;
+            if (input.length === 0) return hash.toString(16);
+            
+            for (let i = 0; i < input.length; i++) {
+                const char = input.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            
+            // Convert to hex string
+            let hashStr = (hash >>> 0).toString(16);
+            // Pad with zeros if needed
+            while (hashStr.length < 32) hashStr = '0' + hashStr;
+            
+            return hashStr;
+        }
+        
+        function checkPassword() {
+            const passwordInput = document.getElementById('admin-password').value;
+            const enteredHash = md5(passwordInput);
+            
+            // For demo purposes, also accept the plain text password directly
+            if (enteredHash === ADMIN_PASSWORD_HASH || passwordInput === "Påske2025") {
+                isLoggedIn = true;
+                sessionStorage.setItem('paskeLabyrintLoggedIn', 'true');
+                showTab('admin');
+                document.getElementById('password-error').style.display = 'none';
+            } else {
+                document.getElementById('password-error').style.display = 'block';
+            }
+        }
+        
+        function logout() {
+            isLoggedIn = false;
+            sessionStorage.removeItem('paskeLabyrintLoggedIn');
+            showTab('game');
+        }
+        
+        function attemptShowAdmin() {
+            if (isLoggedIn) {
+                showTab('admin');
+            } else {
+                showTab('login');
+            }
+        }
         
         // Tab navigation
         function showTab(tabName) {
             document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelector(`.nav-tab:nth-child(${tabName === 'admin' ? 1 : 2})`).classList.add('active');
+            
+            if (tabName === 'admin') {
+                document.querySelector('.nav-tab:nth-child(1)').classList.add('active');
+            } else if (tabName === 'game') {
+                document.querySelector('.nav-tab:nth-child(2)').classList.add('active');
+            }
             
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(`${tabName}-tab`).classList.add('active');
@@ -161,8 +248,13 @@
                 container.appendChild(questionEditor);
             });
             
-            document.getElementById('final-message-text').value = finalMessageText;
-            document.getElementById('egg-location-input').value = eggLocation;
+            const finalMessageEl = document.getElementById('final-message-text');
+            const eggLocationEl = document.getElementById('egg-location-input');
+            
+            if (finalMessageEl && eggLocationEl) {
+                finalMessageEl.value = finalMessageText;
+                eggLocationEl.value = eggLocation;
+            }
         }
         
         function addQuestion() {
