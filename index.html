@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Påske Labyrint</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #fffae6; margin: 0; padding: 20px; color: #663300; }
+        .container { max-width: 800px; margin: 0 auto; background-color: #fff8dc; padding: 20px; border-radius: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.1); text-align: center; }
+        h1 { color: #ff9900; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .question-container { margin: 20px 0; padding: 15px; background-color: #ffeecc; border-radius: 10px; display: none; }
+        .active-question { display: block; }
+        input[type="text"], textarea { padding: 10px; margin: 10px 0; border: 2px solid #ffcc66; border-radius: 5px; width: 80%; font-size: 16px; }
+        button { background-color: #ff9900; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; transition: background-color 0.3s; }
+        button:hover { background-color: #e68a00; }
+        .hint-button { background-color: #66cc66; font-size: 14px; }
+        .hint { display: none; font-style: italic; color: #996633; margin: 10px 0; }
+        .egg-image { max-width: 200px; margin: 20px auto; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        #final-message { display: none; }
+        .admin-panel { background-color: #f0f0f0; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: left; }
+        .question-editor { background-color: #fff; padding: 15px; margin: 10px 0; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .nav-tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #ddd; }
+        .nav-tab { padding: 10px 20px; cursor: pointer; background-color: #eee; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0; margin-right: 5px; }
+        .nav-tab.active { background-color: #fff; border-bottom: 1px solid #fff; margin-bottom: -1px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .image-preview { max-width: 200px; max-height: 200px; margin: 10px 0; border: 1px solid #ddd; }
+        .question-image { max-width: 100%; max-height: 300px; margin: 10px 0; }
+        #preview-container { margin-top: 20px; padding: 20px; background-color: #f9f9f9; border-radius: 10px; }
+        .share-box { padding: 15px; background-color: #e6ffe6; border: 1px solid #66cc66; border-radius: 5px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container" id="main-container">
+        <div class="nav-tabs">
+            <div class="nav-tab" onclick="showTab('admin')">Admin</div>
+            <div class="nav-tab active" onclick="showTab('game')">Spill</div>
+        </div>
+        
+        <!-- Admin Panel / Configuration -->
+        <div id="admin-tab" class="tab-content">
+            <div class="admin-panel">
+                <h2>Konfigurer Påske Labyrint</h2>
+                <p>Her kan du tilpasse spørsmål, bilder, hint og svar for ditt påskespill.</p>
+                
+                <div id="questions-container">
+                    <!-- Questions will be added here by JavaScript -->
+                </div>
+                
+                <button onclick="addQuestion()">Legg til spørsmål</button>
+                <button onclick="saveConfiguration()">Lagre konfigurasjon</button>
+                <button onclick="resetConfiguration()" style="background-color: #cc6666;">Tilbakestill til standard</button>
+                
+                <div id="preview-container">
+                    <h3>Forhåndsvisning av siste side</h3>
+                    <textarea id="final-message-text" placeholder="Gratulerer melding" rows="3"></textarea>
+                    <p>Hvor er eggene gjemt?</p>
+                    <input type="text" id="egg-location-input" placeholder="F.eks. 'under sofaen'">
+                </div>
+                
+                <div id="share-box-container"></div>
+            </div>
+        </div>
+        
+        <!-- Game Panel -->
+        <div id="game-tab" class="tab-content active">
+            <h1>Påske Labyrint</h1>
+            <p id="intro-text">Velkommen til påske labyrinten! Løs alle oppgavene for å finne påskeeggene!</p>
+            
+            <div id="questions-display">
+                <!-- Questions will be displayed here -->
+            </div>
+            
+            <div id="final-message">
+                <h2>Gratulerer!</h2>
+                <p id="final-text">Du har klart alle oppgavene!</p>
+                <div id="final-image-container">
+                    <img src="https://placeholder.pics/svg/300x200/FFF8DC-FFEECC/663300/P%C3%A5skeegg" alt="Påskeegg" class="egg-image">
+                </div>
+                <p id="egg-location" style="font-weight: bold; font-size: 24px; color: #ff6600;"></p>
+                <button onclick="resetGame()">Start på nytt</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default questions
+        let questions = [
+            {
+                question: "Jeg er gul og piper når jeg er liten. Hva er jeg?",
+                answer: "kylling",
+                hint: "Denne lille skapningen kommer ut av et egg på våren.",
+                image: null
+            },
+            {
+                question: "Regn ut: 12 + 8 - 5 = ?",
+                answer: "15",
+                hint: "Husk å regne fra venstre mot høyre.",
+                image: null
+            },
+            {
+                question: "Fullfør setningen: April, april, jeg kan lure deg _______ jeg vil.",
+                answer: "akkurat hvor",
+                hint: "Det manglende ordet begynner på 'a' og deretter 'h'.",
+                image: null
+            }
+        ];
+        
+        // Make a backup of the original questions for reset functionality
+        const originalQuestions = JSON.parse(JSON.stringify(questions));
+        
+        let finalMessageText = "Du har klart alle oppgavene! Nå kan du lete etter påskeeggene som er gjemt i...";
+        let eggLocation = "under sofaen";
+        
+        // Initial setup on page load
+        window.onload = function() {
+            loadConfiguration();
+            renderAdminPanel();
+            renderGame();
+        };
+        
+        // Tab navigation
+        function showTab(tabName) {
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`.nav-tab:nth-child(${tabName === 'admin' ? 1 : 2})`).classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        // Admin panel functions
+        function renderAdminPanel() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            
+            questions.forEach((q, index) => {
+                const questionEditor = document.createElement('div');
+                questionEditor.className = 'question-editor';
+                
+                let editorHTML = `
+                    <h3>Spørsmål ${index + 1}</h3>
+                    <textarea id="question-${index}" placeholder="Skriv ditt spørsmål her..." rows="2">${q.question}</textarea>
+                    <input type="text" id="answer-${index}" placeholder="Riktig svar" value="${q.answer}">
+                    <input type="text" id="hint-${index}" placeholder="Hint (valgfritt)" value="${q.hint || ''}">
+                    <div>
+                        <p>Bilde/Rebus (valgfritt):</p>
+                        <input type="file" id="image-${index}" accept="image/*" onchange="previewImage(${index})">`;
+                
+                if (q.image) {
+                    editorHTML += `<div><img src="${q.image}" class="image-preview" id="preview-${index}"></div>`;
+                } else {
+                    editorHTML += `<div id="preview-container-${index}" style="display:none">
+                                     <img id="preview-${index}" class="image-preview">
+                                   </div>`;
+                }
+                
+                editorHTML += `</div><button onclick="removeQuestion(${index})">Fjern spørsmål</button>`;
+                
+                questionEditor.innerHTML = editorHTML;
+                container.appendChild(questionEditor);
+            });
+            
+            document.getElementById('final-message-text').value = finalMessageText;
+            document.getElementById('egg-location-input').value = eggLocation;
+        }
+        
+        function addQuestion() {
+            questions.push({
+                question: "",
+                answer: "",
+                hint: "",
+                image: null
+            });
+            renderAdminPanel();
+        }
+        
+        function removeQuestion(index) {
+            if (questions.length > 1) {
+                questions.splice(index, 1);
+                renderAdminPanel();
+            } else {
+                alert("Du må ha minst ett spørsmål!");
+            }
+        }
+        
+        function previewImage(index) {
+            const fileInput = document.getElementById(`image-${index}`);
+            const previewContainer = document.getElementById(`preview-container-${index}`);
+            const preview = document.getElementById(`preview-${index}`);
+            
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    if (previewContainer) {
+                        previewContainer.style.display = 'block';
+                    }
+                    questions[index].image = e.target.result;
+                }
+                
+                reader.readAsDataURL(fileInput.files[0]);
+            }
+        }
+        
+        function saveConfiguration() {
+            // Update questions from input fields
+            questions.forEach((q, index) => {
+                const questionEl = document.getElementById(`question-${index}`);
+                const answerEl = document.getElementById(`answer-${index}`);
+                const hintEl = document.getElementById(`hint-${index}`);
+                
+                if (questionEl && answerEl) {
+                    q.question = questionEl.value;
+                    q.answer = answerEl.value;
+                    q.hint = hintEl ? hintEl.value : "";
+                }
+            });
+            
+            const finalMessageEl = document.getElementById('final-message-text');
+            const eggLocationEl = document.getElementById('egg-location-input');
+            
+            if (finalMessageEl && eggLocationEl) {
+                finalMessageText = finalMessageEl.value;
+                eggLocation = eggLocationEl.value;
+            }
+            
+            // Try localStorage first
+            try {
+                localStorage.setItem('paskeLabyrintQuestions', JSON.stringify(questions));
+                localStorage.setItem('paskeLabyrintFinalText', finalMessageText);
+                localStorage.setItem('paskeLabyrintEggLocation', eggLocation);
+            } catch (e) {
+                console.warn("Kunne ikke lagre til localStorage: ", e);
+            }
+            
+            // Generate a shareable URL regardless
+            generateShareableURL();
+            
+            // Update game view
+            renderGame();
+            
+            alert('Konfigurasjonen er lagret! Du kan nå dele lenken eller klikke på "Spill" fanen for å teste spillet.');
+        }
+        
+        function generateShareableURL() {
+            // Create config data object
+            const configData = {
+                questions: questions,
+                finalMessageText: finalMessageText,
+                eggLocation: eggLocation
+            };
+            
+            // Compress data to URL
+            const compressedData = btoa(JSON.stringify(configData));
+            const newUrl = window.location.pathname + '?config=' + encodeURIComponent(compressedData);
+            
+            // Show URL for sharing
+            const shareBox = document.createElement('div');
+            shareBox.className = 'share-box';
+            shareBox.id = 'share-box';
+            
+            shareBox.innerHTML = `
+                <h3>Del din labyrint</h3>
+                <p>Kopier denne lenken for å dele din påskelabyrint eller bokmerke den:</p>
+                <input type="text" value="${window.location.origin + newUrl}" style="width: 90%; padding: 10px; margin: 10px 0;" readonly>
+                <button onclick="copyToClipboard('${window.location.origin + newUrl}')">Kopier lenke</button>
+            `;
+            
+            const shareContainer = document.getElementById('share-box-container');
+            shareContainer.innerHTML = '';
+            shareContainer.appendChild(shareBox);
+            
+            // Update URL without reloading
+            window.history.pushState({}, '', newUrl);
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Lenke kopiert til utklippstavlen!');
+            }).catch(err => {
+                // Fallback method for copying
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    alert('Lenke kopiert til utklippstavlen!');
+                } catch (err) {
+                    alert('Kunne ikke kopiere lenken automatisk. Vennligst merk teksten og kopier manuelt.');
+                }
+                
+                document.body.removeChild(textArea);
+            });
+        }
+        
+        function resetConfiguration() {
+            if (confirm("Er du sikker på at du vil tilbakestille alle spørsmål til standard?")) {
+                questions = JSON.parse(JSON.stringify(originalQuestions));
+                finalMessageText = "Du har klart alle oppgavene! Nå kan du lete etter påskeeggene som er gjemt i...";
+                eggLocation = "under sofaen";
+                
+                // Remove from localStorage
+                try {
+                    localStorage.removeItem('paskeLabyrintQuestions');
+                    localStorage.removeItem('paskeLabyrintFinalText');
+                    localStorage.removeItem('paskeLabyrintEggLocation');
+                } catch (e) {
+                    console.warn("Kunne ikke fjerne fra localStorage: ", e);
+                }
+                
+                // Remove URL parameter
+                window.history.pushState({}, '', window.location.pathname);
+                
+                renderAdminPanel();
+                renderGame();
+                
+                // Remove share box
+                const shareContainer = document.getElementById('share-box-container');
+                if (shareContainer) {
+                    shareContainer.innerHTML = '';
+                }
+            }
+        }
+        
+        function loadConfiguration() {
+            // Check URL parameters first
+            const urlParams = new URLSearchParams(window.location.search);
+            const configParam = urlParams.get('config');
+            
+            if (configParam) {
+                try {
+                    const decodedData = JSON.parse(atob(decodeURIComponent(configParam)));
+                    
+                    if (decodedData.questions) {
+                        questions = decodedData.questions;
+                    }
+                    
+                    if (decodedData.finalMessageText) {
+                        finalMessageText = decodedData.finalMessageText;
+                    }
+                    
+                    if (decodedData.eggLocation) {
+                        eggLocation = decodedData.eggLocation;
+                    }
+                    
+                    // If we came via a shared link, go directly to game view
+                    if (window.location.search.includes('config=')) {
+                        showTab('game');
+                    }
+                    
+                    return; // Don't check localStorage if we have URL configuration
+                } catch (e) {
+                    console.error("Kunne ikke laste konfigurasjonen fra URL: ", e);
+                }
+            }
+            
+            // Try to load from localStorage if available and no URL parameter
+            try {
+                const savedQuestions = localStorage.getItem('paskeLabyrintQuestions');
+                const savedFinalText = localStorage.getItem('paskeLabyrintFinalText');
+                const savedEggLocation = localStorage.getItem('paskeLabyrintEggLocation');
+                
+                if (savedQuestions) {
+                    questions = JSON.parse(savedQuestions);
+                }
+                
+                if (savedFinalText) {
+                    finalMessageText = savedFinalText;
+                }
+                
+                if (savedEggLocation) {
+                    eggLocation = savedEggLocation;
+                }
+            } catch (e) {
+                console.warn("Kunne ikke laste fra localStorage: ", e);
+            }
+        }
+        
+        // Game functions
+        function renderGame() {
+            const container = document.getElementById('questions-display');
+            container.innerHTML = '';
+            
+            questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = `question-container ${index === 0 ? 'active-question' : ''}`;
+                questionDiv.id = `game-question-${index}`;
+                
+                let questionHTML = `
+                    <h2>Oppgave ${index + 1}</h2>
+                    <p>${q.question}</p>
+                `;
+                
+                if (q.image) {
+                    questionHTML += `<img src="${q.image}" class="question-image" alt="Rebus eller bilde for oppgave ${index + 1}">`;
+                }
+                
+                questionHTML += `
+                    <input type="text" id="game-answer-${index}" placeholder="Skriv svaret ditt her...">
+                    <button onclick="checkAnswer(${index})">Sjekk svar</button>
+                `;
+                
+                if (q.hint) {
+                    questionHTML += `
+                        <button class="hint-button" onclick="showHint(${index})">Hint</button>
+                        <p id="game-hint-${index}" class="hint">${q.hint}</p>
+                    `;
+                }
+                
+                questionDiv.innerHTML = questionHTML;
+                container.appendChild(questionDiv);
+            });
+            
+            // Update final message
+            document.getElementById('final-text').textContent = finalMessageText;
+            document.getElementById('egg-location').textContent = '';
+        }
+        
+        function checkAnswer(questionIndex) {
+            const userAnswer = document.getElementById(`game-answer-${questionIndex}`).value.toLowerCase().trim();
+            const correctAnswer = questions[questionIndex].answer.toLowerCase().trim();
+            
+            if (userAnswer === correctAnswer) {
+                alert('Riktig svar! Gå videre til neste oppgave.');
+                document.getElementById(`game-question-${questionIndex}`).classList.remove('active-question');
+                
+                if (questionIndex < questions.length - 1) {
+                    // Show next question
+                    document.getElementById(`game-question-${questionIndex + 1}`).classList.add('active-question');
+                } else {
+                    // Show final message
+                    document.getElementById('questions-display').style.display = 'none';
+                    document.getElementById('final-message').style.display = 'block';
+                    document.getElementById('egg-location').textContent = eggLocation;
+                }
+            } else {
+                alert('Feil svar. Prøv igjen!');
+            }
+        }
+        
+        function showHint(questionIndex) {
+            document.getElementById(`game-hint-${questionIndex}`).style.display = 'block';
+        }
+        
+        function resetGame() {
+            document.getElementById('questions-display').style.display = 'block';
+            document.getElementById('final-message').style.display = 'none';
+            
+            // Hide all questions except the first one
+            questions.forEach((_, index) => {
+                const questionElement = document.getElementById(`game-question-${index}`);
+                if (questionElement) {
+                    questionElement.classList.remove('active-question');
+                    if (index === 0) {
+                        questionElement.classList.add('active-question');
+                    }
+                }
+            });
+            
+            // Clear all answer inputs
+            questions.forEach((_, index) => {
+                const answerInput = document.getElementById(`game-answer-${index}`);
+                if (answerInput) {
+                    answerInput.value = '';
+                }
+                
+                // Hide all hints
+                const hintElement = document.getElementById(`game-hint-${index}`);
+                if (hintElement) {
+                    hintElement.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
